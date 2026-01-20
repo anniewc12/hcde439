@@ -4,15 +4,144 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, maximum-scale=1.0" />
 
-    <title>Example Student's HCDE 439 Physical Computing Page!</title>
+    <title>Annie's HCDE 439 Physical Computing Page!</title>
 
     <link href="style.css" rel="stylesheet" type="text/css" />
   </head>
   <body>
-    <h1>Example Student's Assignment 1!</h1>
-    <div class="header">
-      <img src="red-panda.jpg" />
-      <p>Here is all the documentation for assignment 1!</p>
-    </div>
+    <h1>Assignment 1: Blink!</h1>
+    <p>
+      For this assignment, I built a blinking light pattern using an Arduino and
+      three LEDs. The main goal was to make each LED blink independently using
+      separate digital pins and a simple timing pattern.
+    </p>
+
+    <h2>Schematic and resistor calculations</h2>
+    <img src="schematic_calc.png" width="470" />
+    <p>
+      This diagram shows how the circuit is wired: each LED is connected in series
+      with its own resistor and then to a digital output pin. I calculated resistor
+      values using a 5V source and each LED’s forward voltage. The resistor limits
+      current to keep both the LEDs and the Arduino pins safe.
+    </p>
+
+    <h2>Circuit on breadboard</h2>
+    <img src="blinkpic2.png" width="470" />
+    <p>
+      I used two red LEDs with one white LED in the middle to make the pattern
+      easier to see. Each LED is wired in series with its own resistor and connected
+      to Arduino digital pins 12, 11, and 10. All LED cathodes connect to the ground
+      rail, which connects back to Arduino GND. Since each LED has its own pin and
+      resistor, each one can blink without affecting the others.
+    </p>
+
+    <h2>Arduino Code</h2>
+    <pre><code>
+      // Declare digital pin for first red LED
+      const int Mypin12 = 12;
+      
+      // Declare digital pin for white LED
+      const int Mypin11 = 11;
+      
+      // Declare digital pin for second red LED
+      const int Mypin10 = 10;
+      
+      void setup() {
+        // Configure pin 12 as an output
+        pinMode(Mypin12, OUTPUT);
+      
+        // Configure pin 11 as an output
+        pinMode(Mypin11, OUTPUT);
+      
+        // Configure pin 10 as an output
+        pinMode(Mypin10, OUTPUT);
+      }
+      
+      void loop() {
+      
+        // Blink the first red LED three times quickly
+        for (int i = 0; i < 3; i++) {
+          // Turn the first red LED on
+          digitalWrite(Mypin12, HIGH);
+          // Keep the LED on briefly
+          delay(150);
+          // Turn the first red LED off
+          digitalWrite(Mypin12, LOW);
+          // Pause before the next blink
+          delay(150);
+        }
+      
+        // Blink the white LED two times
+        for (int i = 0; i < 2; i++) {
+          // Turn the white LED on
+          digitalWrite(Mypin11, HIGH);
+          // Keep the LED on briefly
+          delay(150);
+          // Turn the white LED off
+          digitalWrite(Mypin11, LOW);
+          // Pause before the next blink
+          delay(150);
+        }
+      
+        // Blink the second red LED three times
+        for (int i = 0; i < 3; i++) {
+          // Turn the second red LED on
+          digitalWrite(Mypin10, HIGH);
+          // Keep the LED on briefly
+          delay(150);
+          // Turn the second red LED off
+          digitalWrite(Mypin10, LOW);
+          // Pause before the next blink
+          delay(150);
+        }
+      
+        // Pause before restarting the full blinking pattern
+        delay(1000);
+      }
+      
+    </code></pre>
+
+    <h2>Circuit Operation</h2>
+    <img src="blink.gif"  width="450"/>
+    <p>
+      This GIF shows the final blinking sequence. The first red LED blink three times,
+      and the white LED blinks two times in the middle, then the second red LED blink 
+      three times again soon. The pattern repeats with a short pause at the end.
+    </p>
+
+    <h2>Additional Questions</h2>
+
+    <h3>1. Time vs voltage graph</h3>
+    <img src="voltage_chart.png" width="470" />
+    <p>
+      This chart shows the voltage across each LED over time. When a pin is set to
+      HIGH, the LED voltage rises to roughly its forward voltage, about 2.0V for
+      red LEDs and about 2.5V for the white LED. 
+    </p>
+
+    <h3>2. How many LEDs can blink independently and how much current?</h3>
+    <p>
+      On an Arduino Uno, about 12 pins can comfortably control LEDs independently. 
+      12 LEDs would draw about 80 mA total if they were all on at the same time.
+    </p>
+
+    <h3>3. How fast until blinking looks continuous?</h3>
+    <p>
+      Blinking starts to look continuous around 20 ms, so the LED appears steady
+      instead of flashing.
+    </p>
+
+    <h3>4. AI Tool Usage</h3>
+    <p>
+      I used AI tools to help clarify circuit concepts, like asking question regarding to 
+      my voltage chart to understand if it is posisble to have 0 voltage drop.
+      I also received help from AI tool to organize my code for a1.html web page and 
+      make overall style.css formatted in a way that provides better readibility for viewers.
+    </p>
+
+    <p>
+      <a href="index.html">Click to return to Homepage</a>
+    </p>
+
   </body>
 </html>
