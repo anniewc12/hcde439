@@ -26,7 +26,9 @@
       middle LED, while pins 5 and 3 stay fully on when the pattern is active.
 
       Resistor calculation: R = (5V - 2V)/0.02A = 150Ω and I used 220Ω resistors in the circuit 
-      to be safer while still staying bright.
+      to be safer while still staying bright. I used a 10kΩ resistor as a pull-up for the button 
+      input so the pin has a stable default HIGH value and doesn’t float. This value is common 
+      because it keeps the current very small when the button is pressed
     </p>
 
     <h2>Circuit on breadboard</h2>
@@ -125,9 +127,7 @@
       the pattern and turns all three LEDs off.
     </p>
 
-    <h2>Additional Questions</h2>
-    Additional questions:
-     
+    <h2>Additional Questions</h2>     
     <h3>1. Charts</h3>
     <img src="fadepic2.jpg" width="470" />
     <p>
