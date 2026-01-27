@@ -4,15 +4,169 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, maximum-scale=1.0" />
 
-    <title>Example Student's HCDE 439 Physical Computing Page!</title>
+    <title>Annie's HCDE 439 Physical Computing Page!</title>
 
     <link href="style.css" rel="stylesheet" type="text/css" />
   </head>
   <body>
-    <h1>Example Student's Assignment 2!</h1>
-    <div class="header">
-      <img src="red-panda.jpg" />
-      <p>Here is all the documentation for assignment 2!</p>
-    </div>
+    <h1>Assignment 2: Fade!</h1>
+    <p>
+      For this assignment, I built a fading light pattern using with a button and 
+      three red LEDs. The main goal was to make three LEDs to light up when pressed the button.
+      One will start fading on and off while the other two stay on untill the button being pressed 
+      again.
+    </p>
+
+    <h2>Schematic and resistor calculations</h2>
+    <img src="fadepic1.jpg" width="470" />
+    <p>
+      This diagram shows how the circuit is wired: button is connected to digital pin 2 and 
+      controls whether the LED pattern runs. Three red LEDs are connected to pins 6, 5, and 3, 
+      each in series with a resistor to limit current. Pin 6 uses PWM (analogWrite) to fade the 
+      middle LED, while pins 5 and 3 stay fully on when the pattern is active.
+
+      Resistor calculation: R = (5V - 2V)/0.02A = 150Ω and I used 220Ω resistors in the circuit 
+      to be safer while still staying bright.
+    </p>
+
+    <h2>Circuit on breadboard</h2>
+    <img src="fadepic3.png" width="470" />
+    <p>
+      I used three red LEDs with the one in the middle to have the fading effect 
+      while the other two stay light on. Each LED is wired in series with its own resistor and 
+      connected to Arduino digital pins 6, 5, and 3. and the button connect to pin 2. All LED and 
+      button connect back to the same Arduino GND. To keep the wiring clean, I placed the three 
+      LEDs in a row and routed each resistor to its corresponding Arduino pin with short jumper 
+      wires. The button straddles the center gap of the breadboard so the legs are on separate 
+      rows, and all components share the same ground rail connected back to Arduino GND.
+    </p>
+
+    <h2>Arduino Code</h2>
+    <pre><code>
+      int led6 = 6;        // store pin number 6 for the fading LED (PWM capable)
+      int led5 = 5;        // store pin number 5 for a steady LED
+      int led3 = 3;        // store pin number 3 for a steady LED
+      int buttonPin = 2;   // store pin number 2 for the push button input
+
+      bool isRunning = false;     // boolean flag to track whether the LED pattern is active
+      int buttonState = LOW;      // variable to hold the current button reading
+      int lastButtonState = LOW;  // variable to remember the previous button reading
+
+      void setup() {
+        pinMode(led6, OUTPUT);       // set pin 6 as output for the fading LED
+        pinMode(led5, OUTPUT);       // set pin 5 as output for steady LED
+        pinMode(led3, OUTPUT);       // set pin 3 as output for steady LED
+        pinMode(buttonPin, INPUT);   // set pin 2 as input to read the button
+        
+      }
+
+      void loop() {
+
+        // read button
+        buttonState = digitalRead(buttonPin);  // read current state of the button (HIGH or LOW)
+
+        // detect button press
+        if (buttonState == HIGH && lastButtonState == LOW) {  // check for a new button press
+          isRunning = !isRunning;   // toggle the running state on each press
+          delay(200);               // short delay to prevent button bouncing
+        }
+
+        lastButtonState = buttonState;  // save current button state for next loop comparison
+
+        // if pattern is running
+        if (isRunning == true) {  // check if the LED pattern should run
+
+          // turn steady LEDs fully on
+          digitalWrite(led5, HIGH);  // turn LED on pin 5 fully on
+          digitalWrite(led3, HIGH);  // turn LED on pin 3 fully on
+
+          // fade up using for loop
+          for (int brightness = 0; brightness <= 255; brightness++) {  // increase brightness gradually
+            analogWrite(led6, brightness);  // set LED6 brightness using PWM
+            delay(5);                      // small delay for visible fade effect
+
+            // allow button to stop pattern during fade
+            if (digitalRead(buttonPin) == HIGH) {  // check if button is pressed during fade
+              isRunning = false;                  // stop the pattern
+              break;                             // exit the loop early
+            }
+          }
+
+          // fade down using for loop
+          for (int brightness = 255; brightness >= 0; brightness--) {  // decrease brightness gradually
+            analogWrite(led6, brightness);  // set LED6 brightness using PWM
+            delay(5);                      // small delay for visible fade effect
+
+            // allow button to stop pattern during fade
+            if (digitalRead(buttonPin) == HIGH) {  // check if button is pressed during fade
+              isRunning = false;                  // stop the pattern
+              break;                             // exit the loop early
+            }
+          }
+        }
+
+        // if pattern is off, turn everything off
+        if (isRunning == false) {   // check if the pattern is not running
+          analogWrite(led6, 0);     // ensure fading LED is completely off
+          digitalWrite(led5, LOW);  // turn off steady LED on pin 5
+          digitalWrite(led3, LOW);  // turn off steady LED on pin 3
+        }
+      }
+
+      
+    </code></pre>
+
+    <h2>Circuit Operation</h2>
+    <img src="fadegif1.gif"  width="450"/>
+    <p>
+      This GIF shows the final pattern of using button to control LEDs. This GIF shows the final 
+      pattern: when I press the button once, the two side LEDs turn on and stay steady while the 
+      middle LED fades up and down continuously. When I press the button again, the program stops 
+      the pattern and turns all three LEDs off.
+    </p>
+
+    <h2>Additional Questions</h2>
+    Additional questions:
+     
+    <h3>1. Charts</h3>
+    <img src="fadepic2.jpg" width="470" />
+    <p>
+      The three lines are PWM signals over time. With analogWrite(led, 255), the signal is HIGH 
+      nearly all the time, so the LED sees close to the full 5V most of the time. With analogWrite(led, 128)
+      , the signal is HIGH about half the time. And with analogWrite(led, 64), it’s HIGH about a quarter of the 
+      time. The important detail is that the voltage is switching between 0V and 5V quickly.
+    </p>
+
+    <h3>2. If all your LEDs were on simultaneously, what would the total current draw be? Is this above or 
+      below the total Arduino current draw limits? If all your LEDs were on, how long would your circuit run 
+      if powered by a 1200 mAh battery?</h3>
+    <p>
+      If all three LEDs are on at the same time and each one draws about 20 mA, the total current draw is 
+      about 60 mA (20 mA × 3). This is still within safe limits for the Arduino because each LED is connected 
+      to a separate pin, and each pin is recommended to stay around or under 20 mA. The board also has an overall 
+      current limit, so keeping each LED at this level is a safe choice.
+
+      If the circuit is powered by a 1200 mAh battery, we can estimate to divide 1200 mAh by 60 mA, which gives 
+      about 20 hours of runtime.
+    </p>
+
+    <h3>3. Measure and record the actual voltage across one of your LEDs when it's on. How does this compare 
+      to the theoretical forward voltage for your LED color?</h3>
+    <p>
+      I measured the voltage across one red LED while it was fully on and got 2.01V. A typical red LED forward 
+      voltage is around 1.8–2.2V, so my measurement is close to the expected range. Any difference is normal 
+      because forward voltage changes with the specific LED, current level, and temperature.
+    </p>
+
+    <h3>4. AI Tool Usage</h3>
+    <p>
+      I used AI tools to help clarify pull up vs. pull down circuit. I also asked questions to double check my logic regarding
+       to my schematic sketch. 
+    </p>
+
+    <p>
+      <a href="index.html">Click to return to Homepage</a>
+    </p>
+
   </body>
 </html>
