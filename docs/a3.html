@@ -18,8 +18,8 @@
     </p>
 
     <h2>Schematic and resistor calculations</h2>
-    <img src="a3pic1.png" width="470" />
-    <img src="a3pic2.png" width="470" />
+    <img src="a3pic1.jpg" width="470" />
+    <img src="a3pic2.jpg" width="470" />
     <p>
         The photoresistor and a fixed resistor form a voltage divider connected to A0.
         When light changes, the resistance of the photoresistor changes, which changes
@@ -141,17 +141,18 @@
     <h3>2. Graph of voltage at A0 over time</h3>
     <img src="a3chart.jpg" width="470" />
     <p>
-        As the light on the photoresistor changes, the voltage at A0 changes
-        smoothly over time.
-        When I cover the sensor with my hand, the voltage drops.
-        When I shine a flashlight on it, the voltage rises.
-        This change is gradual and matches how the LEDs slowly get dimmer
-        or brighter in the video.
+      As the light on the photoresistor increases, the resistance of the photoresistor decreases.
+      Because of how the voltage divider is wired, this causes the voltage at A0 to increase.
+      When the environment is darker, the photoresistor has higher resistance, which causes
+      the voltage at A0 to drop.
+      This creates a smooth curve where voltage rises as illumination increases.
+      This matches the behavior seen in the LEDs, where the LEDs get brighter when
+      there is more light and dimmer when there is less light.
     </p>
 
     <h3>3. If analogWrite were 10-bit and analogRead were 16-bit</h3>
     <p>
-        Right now, analogRead gives values from 0 to 1023,
+        AnalogRead gives values from 0 to 1023,
         and analogWrite uses values from 0 to 255.
         If analogRead instead gave values from 0 to 65535,
         and analogWrite accepted values from 0 to 1023,
@@ -159,7 +160,7 @@
         
         map(sensorValue, 0, 65535, 0, 1023);
 
-        The idea stays the same. We are just converting the sensor range
+        The idea stays the same because we are just converting the sensor range
         to the LED brightness range.
     </p>
 
