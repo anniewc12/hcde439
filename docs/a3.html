@@ -18,7 +18,8 @@
     </p>
 
     <h2>Schematic and resistor calculations</h2>
-    <img src="fadepic1.jpg" width="470" />
+    <img src="a3pic1.png" width="470" />
+    <img src="a3pic2.png" width="470" />
     <p>
         The photoresistor and a fixed resistor form a voltage divider connected to A0.
         When light changes, the resistance of the photoresistor changes, which changes
@@ -30,15 +31,12 @@
     </p>
 
     <h2>Circuit on breadboard</h2>
-    <img src="fadepic3.png" width="470" />
+    <img src="a3board.png" width="470" />
     <p>
-      I used three red LEDs with the one in the middle to have the fading effect 
-      while the other two stay light on. Each LED is wired in series with its own resistor and 
-      connected to Arduino digital pins 6, 5, and 3. and the button connect to pin 2. All LED and 
-      button connect back to the same Arduino GND. To keep the wiring clean, I placed the three 
-      LEDs in a row and routed each resistor to its corresponding Arduino pin with short jumper 
-      wires. The button straddles the center gap of the breadboard so the legs are on separate 
-      rows, and all components share the same ground rail connected back to Arduino GND.
+        The photoresistor is connected to 5V and the fixed resistor connects to GND,
+        with the junction going to A0. Two LEDs are connected to PWM pins 9 and 6,
+        each in series with a 220Ω resistor and returning to GND. All components
+        share the same ground rail connected to Arduino GND.
     </p>
 
     <h2>Arduino Code</h2>
@@ -119,49 +117,56 @@
     </code></pre>
 
     <h2>Circuit Operation</h2>
-    <img src="fadegif1.gif"  width="450"/>
+    <img src="a3vid1.gif"  width="450"/>
     <p>
-      This GIF shows the final pattern of using button to control LEDs. This GIF shows the final 
-      pattern: when I press the button once, the two side LEDs turn on and stay steady while the 
-      middle LED fades up and down continuously. When I press the button again, the program stops 
-      the pattern and turns all three LEDs off.
+        This GIF shows the LEDs responding to the amount of light on the photoresistor.
+        When I cover the sensor, both LEDs dim. When I shine a flashlight on the sensor,
+        both LEDs brighten. The LEDs smoothly change brightness as the light level changes,
+        acting as a real-time visualization of the sensor reading.
     </p>
 
     <h2>Additional Questions</h2>     
-    <h3>1. Charts</h3>
-    <img src="fadepic2.jpg" width="470" />
+    <h3>1. In your voltage divider, can the variable resistor be either R1 or R2?</h3>
     <p>
-      The three lines are PWM signals over time. With analogWrite(led, 255), the signal is HIGH 
-      nearly all the time, so the LED sees close to the full 5V most of the time. With analogWrite(led, 128)
-      , the signal is HIGH about half the time. And with analogWrite(led, 64), it’s HIGH about a quarter of the 
-      time. The important detail is that the voltage is switching between 0V and 5V quickly.
+        Yes, the photoresistor can be placed on either side of the voltage divider.
+        The only difference is how the voltage changes when the light changes.
+        If the photoresistor is connected to 5V, the voltage at A0 increases
+        when there is more light.
+        If the photoresistor is connected to GND, the voltage at A0 decreases
+        when there is more light.
+        In both cases the Arduino still reads a changing value, and the code
+        can be adjusted to work either way.
     </p>
 
-    <h3>2. If all your LEDs were on simultaneously, what would the total current draw be? Is this above or 
-      below the total Arduino current draw limits? If all your LEDs were on, how long would your circuit run 
-      if powered by a 1200 mAh battery?</h3>
+    <h3>2. Graph of voltage at A0 over time</h3>
     <p>
-      If all three LEDs are on at the same time and each one draws about 20 mA, the total current draw is 
-      about 60 mA (20 mA × 3). This is still within safe limits for the Arduino because each LED is connected 
-      to a separate pin, and each pin is recommended to stay around or under 20 mA. The board also has an overall 
-      current limit, so keeping each LED at this level is a safe choice.
-
-      If the circuit is powered by a 1200 mAh battery, we can estimate to divide 1200 mAh by 60 mA, which gives 
-      about 20 hours of runtime.
+        As the light on the photoresistor changes, the voltage at A0 changes
+        smoothly over time.
+        When I cover the sensor with my hand, the voltage drops.
+        When I shine a flashlight on it, the voltage rises.
+        This change is gradual and matches how the LEDs slowly get dimmer
+        or brighter in the video.
     </p>
 
-    <h3>3. Measure and record the actual voltage across one of your LEDs when it's on. How does this compare 
-      to the theoretical forward voltage for your LED color?</h3>
+    <h3>3. If analogWrite were 10-bit and analogRead were 16-bit</h3>
     <p>
-      I measured the voltage across one red LED while it was fully on and got 2.01V. A typical red LED forward 
-      voltage is around 1.8–2.2V, so my measurement is close to the expected range. Any difference is normal 
-      because forward voltage changes with the specific LED, current level, and temperature.
+        Right now, analogRead gives values from 0 to 1023,
+        and analogWrite uses values from 0 to 255.
+        If analogRead instead gave values from 0 to 65535,
+        and analogWrite accepted values from 0 to 1023,
+        the map function would change to:
+        
+        map(sensorValue, 0, 65535, 0, 1023);
+
+        The idea stays the same. We are just converting the sensor range
+        to the LED brightness range.
     </p>
 
     <h3>4. AI Tool Usage</h3>
     <p>
-      I used AI tools to help clarify pull up vs. pull down circuit. I also asked questions to double check my logic regarding
-       to my schematic sketch. 
+        I used AI tools to better understand how voltage dividers work
+        and to double check my resistor calculations and code logic
+        while building this circuit.
     </p>
 
     <p>
