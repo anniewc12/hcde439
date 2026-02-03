@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, maximum-scale=1.0" />
+
+    <title>Annie's HCDE 439 Physical Computing Page!</title>
+
+    <link href="style.css" rel="stylesheet" type="text/css" />
+  </head>
+  <body>
+    <h1>Assignment 3: Input Output!</h1>
+    <p>
+        For this assignment, I built a light-sensing visualization using a photoresistor and two LEDs.
+        The photoresistor is placed in a voltage divider so that changes in light create changes in
+        voltage at analog pin A0. As the environment gets brighter or darker, both LEDs
+        smoothly change brightness to represent the sensor reading.
+    </p>
+
+    <h2>Schematic and resistor calculations</h2>
+    <img src="fadepic1.jpg" width="470" />
+    <p>
+        The photoresistor and a fixed resistor form a voltage divider connected to A0.
+        When light changes, the resistance of the photoresistor changes, which changes
+        the voltage at A0.
+  
+        I measured the resistance of my photoresistor in bright light and in darkness
+        using a multimeter. Using those values, I calculated the ideal fixed resistor
+        using the geometric mean:  
+    </p>
+
+    <h2>Circuit on breadboard</h2>
+    <img src="fadepic3.png" width="470" />
+    <p>
+      I used three red LEDs with the one in the middle to have the fading effect 
+      while the other two stay light on. Each LED is wired in series with its own resistor and 
+      connected to Arduino digital pins 6, 5, and 3. and the button connect to pin 2. All LED and 
+      button connect back to the same Arduino GND. To keep the wiring clean, I placed the three 
+      LEDs in a row and routed each resistor to its corresponding Arduino pin with short jumper 
+      wires. The button straddles the center gap of the breadboard so the legs are on separate 
+      rows, and all components share the same ground rail connected back to Arduino GND.
+    </p>
+
+    <h2>Arduino Code</h2>
+    <pre><code>
+        // store the analog pin used to read the voltage divider output
+        int sensorPin = A0;
+        
+        // store the PWM pin for LED 1
+        int led1Pin = 9;
+        
+        // store the PWM pin for LED 2
+        int led2Pin = 6;
+        
+        // store the raw sensor reading (0–1023)
+        int sensorValue = 0;
+        
+        // store the mapped brightness value (0–255)
+        int brightness = 0;
+        
+        // store the threshold used for the if statement
+        int threshold = 600;
+        
+        void setup() {
+          // start serial communication at 9600 baud
+          Serial.begin(9600);
+        
+          // set LED 1 pin as an output
+          pinMode(led1Pin, OUTPUT);
+        
+          // set LED 2 pin as an output
+          pinMode(led2Pin, OUTPUT);
+        }
+        
+        void loop() {
+          // read the voltage divider value from the photoresistor circuit
+          sensorValue = analogRead(sensorPin);
+        
+          // map the 10-bit analogRead range (0–1023) to the 8-bit PWM range (0–255)
+          brightness = map(sensorValue, 0, 1023, 0, 255);
+        
+          // clamp brightness to a valid PWM range (safety)
+          brightness = constrain(brightness, 0, 255);
+        
+          // set LED 1 brightness using PWM
+          analogWrite(led1Pin, brightness);
+        
+          // set LED 2 brightness using PWM
+          analogWrite(led2Pin, brightness);
+        
+          // check if the sensor reading is above the threshold
+          if (sensorValue > threshold) {
+        
+            // print a label for the sensor reading
+            Serial.print("Light: ");
+        
+            // print the raw sensor value
+            Serial.print(sensorValue);
+        
+            // print the status message for bright conditions
+            Serial.println(" | Bright environment");
+        
+          } else {
+        
+            // print a label for the sensor reading
+            Serial.print("Light: ");
+        
+            // print the raw sensor value
+            Serial.print(sensorValue);
+        
+            // print the status message for dim conditions
+            Serial.println(" | Dim environment");
+          }
+        
+          // wait briefly so the serial output is readable
+          delay(100);
+        }
+      
+    </code></pre>
+
+    <h2>Circuit Operation</h2>
+    <img src="fadegif1.gif"  width="450"/>
+    <p>
+      This GIF shows the final pattern of using button to control LEDs. This GIF shows the final 
+      pattern: when I press the button once, the two side LEDs turn on and stay steady while the 
+      middle LED fades up and down continuously. When I press the button again, the program stops 
+      the pattern and turns all three LEDs off.
+    </p>
+
+    <h2>Additional Questions</h2>     
+    <h3>1. Charts</h3>
+    <img src="fadepic2.jpg" width="470" />
+    <p>
+      The three lines are PWM signals over time. With analogWrite(led, 255), the signal is HIGH 
+      nearly all the time, so the LED sees close to the full 5V most of the time. With analogWrite(led, 128)
+      , the signal is HIGH about half the time. And with analogWrite(led, 64), it’s HIGH about a quarter of the 
+      time. The important detail is that the voltage is switching between 0V and 5V quickly.
+    </p>
+
+    <h3>2. If all your LEDs were on simultaneously, what would the total current draw be? Is this above or 
+      below the total Arduino current draw limits? If all your LEDs were on, how long would your circuit run 
+      if powered by a 1200 mAh battery?</h3>
+    <p>
+      If all three LEDs are on at the same time and each one draws about 20 mA, the total current draw is 
+      about 60 mA (20 mA × 3). This is still within safe limits for the Arduino because each LED is connected 
+      to a separate pin, and each pin is recommended to stay around or under 20 mA. The board also has an overall 
+      current limit, so keeping each LED at this level is a safe choice.
+
+      If the circuit is powered by a 1200 mAh battery, we can estimate to divide 1200 mAh by 60 mA, which gives 
+      about 20 hours of runtime.
+    </p>
+
+    <h3>3. Measure and record the actual voltage across one of your LEDs when it's on. How does this compare 
+      to the theoretical forward voltage for your LED color?</h3>
+    <p>
+      I measured the voltage across one red LED while it was fully on and got 2.01V. A typical red LED forward 
+      voltage is around 1.8–2.2V, so my measurement is close to the expected range. Any difference is normal 
+      because forward voltage changes with the specific LED, current level, and temperature.
+    </p>
+
+    <h3>4. AI Tool Usage</h3>
+    <p>
+      I used AI tools to help clarify pull up vs. pull down circuit. I also asked questions to double check my logic regarding
+       to my schematic sketch. 
+    </p>
+
+    <p>
+      <a href="index.html">Click to return to Homepage</a>
+    </p>
+
+  </body>
+</html>
