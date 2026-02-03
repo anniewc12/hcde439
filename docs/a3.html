@@ -27,7 +27,13 @@
   
         I measured the resistance of my photoresistor in bright light and in darkness
         using a multimeter. Using those values, I calculated the ideal fixed resistor
-        using the geometric mean:  
+        using the geometric mean.  
+
+        My fixed resistor is about 6300 ohm. In bright light, the photoresistor measured 
+        about 500 ohm, giving Vout around 4.6 volts, which is about an analogRead value 
+        near 940. In darkness, the photoresistor measured about 80000 ohm, giving Vout 
+        around 0.4 volts, or an analogRead value near 80. This shows that A0 reads low values in the dark
+        and high values in bright light, which matches how the LEDs change brightness.
     </p>
 
     <h2>Circuit on breadboard</h2>
