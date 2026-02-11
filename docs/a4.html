@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, maximum-scale=1.0" />
+
+    <title>Annie's HCDE 439 Physical Computing Page!</title>
+
+    <link href="style.css" rel="stylesheet" type="text/css" />
+  </head>
+  <body>
+    <h1>Assignment 4: Libraries!</h1>
+    <p>
+        For this assignment, I built a joystick-controlled servo system using the Servo library.
+        The joystick provides three inputs (X-axis, Y-axis, and a push button), and the servo motor
+        acts as the output. I calibrated the joystick by recording its resting center values at startup
+        and then using those calibrated values when mapping joystick movement to servo motion.
+    </p>
+
+    <h2>Schematic and connections</h2>
+    <img src="a4schematic.JPG" width="470" />
+    <p>
+        The joystick VRx pin is connected to A0, VRy is connected to A1, and the joystick button (SW)
+        is connected to digital pin 2 using INPUT_PULLUP. The joystick VCC connects to 5V and GND connects to GND.
+        The servo signal wire is connected to digital pin 9, with the servo powered by 5V and GND.
+        All components share a common ground with the Arduino.
+    </p>
+
+    <h2>Circuit on breadboard</h2>
+    <img src="a4pic1.png" width="470" />
+    <p>
+        The joystick is placed on the breadboard so that its VRx, VRy, and SW pins connect cleanly to A0, A1,
+        and pin 2. The servo has three wires: red to 5V, brown to GND, and orange to pin 9.
+        This wiring allows the joystick to control the servo position and behavior through the program.
+    </p>
+
+    <h2>Arduino Code</h2>
+    <pre><code>
+// include the Servo library
+#include &lt;Servo.h&gt;
+
+// create a Servo object
+Servo myServo;
+
+// store joystick pins
+int xPin = A0;
+int yPin = A1;
+int swPin = 2;
+
+// store servo signal pin
+int servoPin = 9;
+
+// store raw joystick readings
+int xVal = 0;
+int yVal = 0;
+
+// store calibrated joystick centers
+int xCenter = 512;
+int yCenter = 512;
+
+// store the current mode
+int mode = 0;
+
+// store button state tracking
+int swState = HIGH;
+int lastSwState = HIGH;
+
+// store servo angle for mode 0 and mode 2
+int angle = 90;
+
+// store sweep variables for mode 1
+int sweepAngle = 0;
+int sweepStep = 2;
+
+void setup() {
+  // start serial communication
+  Serial.begin(9600);
+
+  // attach servo to its signal pin
+  myServo.attach(servoPin);
+
+  // set joystick button pin as input with pullup
+  pinMode(swPin, INPUT_PULLUP);
+
+  // wait briefly so readings stabilize before calibration
+  delay(500);
+
+  // calibrate joystick X center at rest
+  xCenter = analogRead(xPin);
+
+  // calibrate joystick Y center at rest
+  yCenter = analogRead(yPin);
+}
+
+void loop() {
+  // read joystick X value
+  xVal = analogRead(xPin);
+
+  // read joystick Y value
+  yVal = analogRead(yPin);
+
+  // read joystick button value (active LOW)
+  swState = digitalRead(swPin);
+
+  // detect a new button press (HIGH to LOW)
+  if (lastSwState == HIGH && swState == LOW) {
+    // cycle to the next mode (0,1,2)
+    mode = (mode + 1) % 3;
+
+    // debounce delay
+    delay(200);
+  }
+
+  // store current button state for next loop
+  lastSwState = swState;
+
+  // mode 0: joystick X directly controls servo angle using calibration
+  if (mode == 0) {
+    // shift xVal so the calibrated center becomes 512
+    int xCal = xVal - xCenter + 512;
+
+    // keep calibrated value inside valid range
+    xCal = constrain(xCal, 0, 1023);
+
+    // map calibrated joystick X to servo angle
+    angle = map(xCal, 0, 1023, 0, 180);
+
+    // move servo to the mapped angle
+    myServo.write(angle);
+
+    // print mode and values to serial
+    Serial.print("Mode 0 | x=");
+    Serial.print(xVal);
+    Serial.print(" xCal=");
+    Serial.print(xCal);
+    Serial.print(" angle=");
+    Serial.println(angle);
+
+    // small delay for stability
+    delay(20);
+  }
+
+  // mode 1: servo sweeps automatically, joystick Y controls sweep speed
+  else if (mode == 1) {
+    // shift yVal so the calibrated center becomes 512
+    int yCal = yVal - yCenter + 512;
+
+    // keep calibrated value inside valid range
+    yCal = constrain(yCal, 0, 1023);
+
+    // map calibrated joystick Y to sweep delay (lower delay = faster)
+    int sweepDelay = map(yCal, 0, 1023, 1, 120);
+
+    // move servo to current sweep angle
+    myServo.write(sweepAngle);
+
+    // update sweep angle by step amount
+    sweepAngle = sweepAngle + sweepStep;
+
+    // reverse sweep direction when hitting limits
+    if (sweepAngle &lt;= 0 || sweepAngle &gt;= 180) {
+      sweepStep = -sweepStep;
+    }
+
+    // print mode and values to serial
+    Serial.print("Mode 1 | y=");
+    Serial.print(yVal);
+    Serial.print(" yCal=");
+    Serial.print(yCal);
+    Serial.print(" sweepDelay=");
+    Serial.println(sweepDelay);
+
+    // delay controls sweep speed
+    delay(sweepDelay);
+  }
+
+  // mode 2: joystick X snaps servo to preset angles
+  else if (mode == 2) {
+    // shift xVal so the calibrated center becomes 512
+    int xCal = xVal - xCenter + 512;
+
+    // keep calibrated value inside valid range
+    xCal = constrain(xCal, 0, 1023);
+
+    // snap servo angle based on calibrated X ranges
+    if (xCal &lt; 205) angle = 0;
+    else if (xCal &lt; 410) angle = 45;
+    else if (xCal &lt; 615) angle = 90;
+    else if (xCal &lt; 820) angle = 135;
+    else angle = 180;
+
+    // move servo to snapped angle
+    myServo.write(angle);
+
+    // print mode and values to serial
+    Serial.print("Mode 2 | x=");
+    Serial.print(xVal);
+    Serial.print(" xCal=");
+    Serial.print(xCal);
+    Serial.print(" snapped=");
+    Serial.println(angle);
+
+    // small delay to reduce jitter
+    delay(50);
+  }
+}
+    </code></pre>
+
+    <h2>Circuit Operation</h2>
+    <img src="a4vid1.gif" width="450" />
+    <p>
+      This GIF shows the servo responding to joystick input.
+      Pressing the joystick button switches between modes.
+      In Mode 0, moving the joystick left and right directly controls the servo angle.
+      In Mode 1, the servo sweeps automatically while the joystick up and down controls the sweep speed.
+      In Mode 2, the joystick left and right snaps the servo to preset angles
+      (0, 45, 90, 135, and 180 degrees).
+    </p>
+
+    <h2>Additional Questions</h2>
+
+    <h3>1. Graph of voltage at pin 9 over time</h3>
+    <img src="a4voltage.JPG" width="470" />
+    <p>
+      The signal on pin 9 is a repeating PWM pulse that switches between 0 volts and 5 volts.
+      The pulse repeats approximately every 20 milliseconds.
+      As the servo angle increases, the HIGH portion of the pulse becomes longer.
+    </p>
+
+    <h3>2. Broken input (1% bad readings) – pseudocode</h3>
+    <pre><code>
+// take several readings
+sum = 0
+count = 0
+for i from 1 to 10:
+  r = readSensor()
+  if r >= minValid AND r <= maxValid:
+    sum = sum + r
+    count = count + 1
+
+value = sum / count
+    </code></pre>
+
+    <h3>3. Noisy input (random +/-10%) – pseudocode</h3>
+    <pre><code>
+// moving average smoothing
+sum = 0
+for i from 1 to 10:
+  sum = sum + readSensor()
+value = sum / 10
+
+// exponential smoothing
+smooth = (1 - alpha) * smooth + alpha * value
+    </code></pre>
+
+    <h3>4. AI Tool Usage</h3>
+    <p>
+      I used AI tools to help understand how the Servo library generates control pulses
+      and to verify my calibration and mode-switching logic for the joystick input.
+    </p>
+
+    <p>
+      <a href="index.html">Click to return to Homepage</a>
+    </p>
+  </body>
+</html>
