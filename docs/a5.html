@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, maximum-scale=1.0" />
+
+    <title>Annie's HCDE 439 Physical Computing Page!</title>
+
+    <link href="style.css" rel="stylesheet" type="text/css" />
+  </head>
+
+  <body>
+    <h1>Assignment 5: High(er) voltage and transistors!</h1>
+
+    <p>
+      For this assignment, I built a touch-controlled DC motor using an N-MOSFET so the motor can run
+      from an external 9V power supply. A capacitive touch sensor (using a library) acts as the input. 
+      When it is touched, the Arduino increases
+      the motor speed smoothly using PWM. When not touched, the motor turns off.
+    </p>
+
+    <h2>Schematic and connections</h2>
+    <img src="a5pic2.jpg" width="470" />
+
+    <p>
+      This circuit uses a low-side N-MOSFET configuration to switch the motor:
+      the motor connects to the 9V positive rail, then to the MOSFET drain.
+      The MOSFET source connects to the shared ground. The MOSFET gate is driven by a PWM pin on the Arduino
+      through a 220 ohm resistor. A 10k ohm pull-down resistor keeps the gate LOW by default so the motor
+      does not spin randomly during reset. A flyback diode is placed across the motor to protect the MOSFET
+      from voltage spikes when the motor turns off. A 100 microfarad capacitor is placed across the 9V rails
+      (between 9V and ground) to reduce noise and voltage dips.
+    </p>
+
+    <h3>Circuit on breadboard and calculations</h3>
+    <img src="a5pic1.png" width="470" />
+    <p>
+    The DC motor is powered by an external 9V supply through the breadboard rails. 
+    The Arduino only controls the MOSFET gate using a PWM signal and reads the capacitive touch input. 
+    The Arduino ground is connected to the 9V ground. 
+    The motor is wired between 9V and the MOSFET drain, with the MOSFET source connected to ground. 
+    A flyback diode is placed across the motor terminals for protection. The Arduino PWM pin outputs 0–5V to the MOSFET gate. 
+    Since the MOSFET is voltage-controlled, it draws minimal steady-state current. 
+    The 220Ω resistor limits brief current spikes during gate switching.
+
+    <p>
+    <strong>Motor current estimate:</strong> Small DC motors draw higher current at startup 
+    than during normal operation. If the motor draws approximately 0.2A while spinning and up to 0.8A at stall, 
+    the MOSFET must safely handle at least 0.8A. I confirmed the maximum drain-to-source current rating using the MOSFET’s datasheet.
+    </p>
+
+    <p>
+    <strong>Flyback diode:</strong> The striped side (cathode) connects to the 9V motor terminal, 
+    and the non-striped side connects to the MOSFET drain side. This protects the transistor from inductive voltage spikes.
+    </p>
+
+    <p>
+    <strong>Capacitor:</strong> A 100µF capacitor is placed across 9V and ground to reduce noise and 
+    stabilize the motor supply during startup.
+    </p>
+
+
+
+    <h2>Arduino Code</h2>
+    <pre><code>
+// CapacitiveSensor library
+#include &lt;CapacitiveSensor.h&gt;
+
+// create a capacitive sensor object using a "send" pin and a "receive" pin
+CapacitiveSensor capSensor = CapacitiveSensor(4, 2);
+
+// store the PWM pin that drives the MOSFET gate
+int motorPin = 9;
+
+// store the current capacitive sensor reading
+long touchValue = 0;
+
+// store the baseline reading measured at startup
+long baseline = 0;
+
+// store the difference from baseline
+long delta = 0;
+
+// set the touch threshold (above this means "touched")
+long threshold = 150;
+
+// store PWM output (0 to 255)
+int pwmOut = 0;
+
+// store a ramp step for smooth speed changes
+int rampStep = 10;
+
+void setup() {
+  // start serial communication to debug readings
+  Serial.begin(9600);
+
+  // set the MOSFET gate pin as an output (this controls ON/OFF via PWM)
+  pinMode(motorPin, OUTPUT);
+
+  // start with motor OFF so it does not spin during startup
+  analogWrite(motorPin, 0);
+
+  // disable CapacitiveSensor auto-calibration so readings don't jump unexpectedly
+  capSensor.set_CS_AutocaL_Millis(0xFFFFFFFF);
+
+  // wait briefly so the circuit stabilizes
+  delay(500);
+
+  // measure baseline capacitance at rest (no touch)
+  baseline = capSensor.capacitiveSensor(30);
+
+  // print baseline so the threshold can be tuned if needed
+  Serial.print("Baseline = ");
+  Serial.println(baseline);
+}
+
+void loop() {
+  // take a capacitive reading (more samples = more stable but slower)
+  touchValue = capSensor.capacitiveSensor(30);
+
+  // compute how far from baseline we are
+  delta = touchValue - baseline;
+
+  // decide if the pad is being touched
+  bool touched = (delta &gt; threshold);
+
+  // if touched, ramp motor speed up smoothly
+  if (touched) {
+    // increase pwmOut by rampStep
+    pwmOut = pwmOut + rampStep;
+
+    // keep pwmOut within valid PWM range
+    pwmOut = constrain(pwmOut, 0, 255);
+  }
+  // if not touched, ramp motor speed down smoothly to OFF
+  else {
+    // decrease pwmOut by rampStep
+    pwmOut = pwmOut - rampStep;
+
+    // keep pwmOut within valid PWM range
+    pwmOut = constrain(pwmOut, 0, 255);
+  }
+
+  // write PWM to the MOSFET gate to control motor speed
+  analogWrite(motorPin, pwmOut);
+
+  // print debug info to verify sensor readings and motor output
+  Serial.print("value=");
+  Serial.print(touchValue);
+  Serial.print(" delta=");
+  Serial.print(delta);
+  Serial.print(" touched=");
+  Serial.print(touched ? "YES" : "NO");
+  Serial.print(" pwm=");
+  Serial.println(pwmOut);
+
+  // small delay for readable serial output
+  delay(50);
+}
+    </code></pre>
+
+    <h2>Circuit Operation</h2>
+    <img src="a5vid.gif" width="450" />
+
+    <p>
+      This GIF shows the motor responding to touch input. When I touch the foil pad, the capacitive sensor reading rises,
+      and the Arduino increases PWM to the MOSFET gate so the motor speeds up. When I stop touching, the reading returns
+      toward baseline and the motor ramps down to off.
+    </p>
+
+    <h2>Additional Questions</h2>
+
+    <h3>1. For your MOSFET, what is the absolute maximum amount of current between pins 2 and 3?</h3>
+    <p>
+        I used an IRLZ44N N-channel MOSFET. According to its datasheet, the absolute maximum
+        drain-to-source current (Id) at 25°C is 47 amps.
+    <p>
+    <strong>Absolute max drain-to-source current (Id):</strong> 47 A
+    </p>
+
+    <h3>2. Schematic with Arduino, DC motor, flyback diode, and capacitors (with example parts)</h3>
+    <img src="a5AQ2.jpg" width="470" />
+
+    <p>
+      In the schematic: motor goes from motor supply positive to MOSFET drain; MOSFET source goes to ground; diode goes
+      across the motor; capacitors go across motor supply positive and ground; Arduino ground ties to motor supply ground.
+    </p>
+    <ul>
+      <li><strong>Motor:</strong> 130-size DC motor (typical hobby motor; datasheets vary by vendor)</li>
+      <li><strong>Flyback diode:</strong> 1N4007 (general-purpose rectifier diode)</li>
+      <li><strong>Capacitors:</strong> 100 microfarad electrolytic + 0.1 microfarad ceramic (both across motor supply rails)</li>
+      <li><strong>MOSFET:</strong> logic-level N-MOSFET (example: IRLZ44N or similar, depending on kit)</li>
+    </ul>
+    
+
+    <h3>3. L293D: schematic + (pseudo)code for two motors</h3>
+    <img src="a5AQ3.jpg" width="470" />
+
+    <p>
+      For the L293D, a dual H-bridge driver, I would connect:
+      Arduino digital pins to L293D input pins (IN1/IN2 for motor A, IN3/IN4 for motor B),
+      Arduino PWM pins to the enable pins (EN1 for motor A, EN2 for motor B) for speed control,
+      and have the grounds to be shared.
+    </p>
+
+    <pre><code>
+        // Motor A (left side of L293D)
+        IN1 = 2
+        IN2 = 3
+        ENA = 5   // PWM enable
+        
+        // Motor B (right side of L293D)
+        IN3 = 4
+        IN4 = 7
+        ENB = 6   // PWM enable
+        
+        setup:
+          set IN1, IN2, IN3, IN4 as OUTPUT
+          set ENA, ENB as OUTPUT
+        
+        loop:
+          // both forward
+          digitalWrite(IN1, HIGH)
+          digitalWrite(IN2, LOW)
+          digitalWrite(IN3, HIGH)
+          digitalWrite(IN4, LOW)
+          analogWrite(ENA, 200)
+          analogWrite(ENB, 200)
+          delay(1000)
+        
+          // both backward
+          digitalWrite(IN1, LOW)
+          digitalWrite(IN2, HIGH)
+          digitalWrite(IN3, LOW)
+          digitalWrite(IN4, HIGH)
+          analogWrite(ENA, 200)
+          analogWrite(ENB, 200)
+          delay(1000)
+        
+          // one forward, one backward
+          digitalWrite(IN1, HIGH)
+          digitalWrite(IN2, LOW)
+          digitalWrite(IN3, LOW)
+          digitalWrite(IN4, HIGH)
+          delay(1000)
+        
+          // swap directions
+          digitalWrite(IN1, LOW)
+          digitalWrite(IN2, HIGH)
+          digitalWrite(IN3, HIGH)
+          digitalWrite(IN4, LOW)
+          delay(1000)        
+    </code></pre>
+
+    <h3>4. AI Tool Usage</h3>
+    <p>
+      Yes. I used a language model to sanity-check the MOSFET low-side wiring steps and to help tune a reasonable
+      approach for baseline/threshold-based capacitive touch readings. I still verified behavior by watching the serial
+      monitor and adjusting the threshold based on my actual sensor values.
+    </p>
+
+    <p>
+      <a href="index.html">Click to return to Homepage</a>
+    </p>
+  </body>
+</html>
