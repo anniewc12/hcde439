@@ -1,0 +1,257 @@
+<!-- assignment6.html -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Assignment 6: Talking to the Web!</title>
+    <style>
+      body { font-family: Georgia, serif; margin: 24px; }
+      h1 { margin-bottom: 12px; }
+      button { margin-right: 10px; padding: 6px 10px; }
+      .row { margin: 10px 0; }
+      .label { font-weight: bold; }
+      .box { display: inline-block; min-width: 220px; }
+    </style>
+  </head>
+
+  <body>
+    <h1>Assignment 6: Talking to the Web!</h1>
+
+    <div class="row">
+      <button id="connectButton">Connect to Arduino</button>
+      <button id="toggleLedButton" disabled>Toggle LED</button>
+    </div>
+
+    <div class="row">
+      <span class="label">Status:</span>
+      <span id="status" class="box">Not connected</span>
+    </div>
+
+    <div class="row">
+      <span class="label">Light (A0):</span>
+      <span id="lightValue" class="box">--</span>
+    </div>
+
+    <div class="row">
+      <span class="label">Button pressed (D2):</span>
+      <span id="buttonValue" class="box">--</span>
+    </div>
+
+    <div class="row">
+      <span class="label">Page color:</span>
+      <span id="colorValue" class="box">--</span>
+    </div>
+
+    <p style="margin-top: 18px; max-width: 720px;">
+      How it works: the Arduino sends <code>light,button</code> over Serial (ex: <code>623,1</code>).
+      The webpage updates the background brightness from the light value and displays the button state.
+      Clicking “Toggle LED” sends <code>LED</code> to Arduino to toggle the LED on pin 9.
+    </p>
+
+    <!-- Put JS at bottom so the buttons exist before we query them -->
+    <script>
+      // ====== WebSerial + UI (paste-as-is) ======
+
+      // Store serial objects
+      let port = null;                     // holds the selected serial port
+      let reader = null;                   // reads incoming serial data
+      let writer = null;                   // writes outgoing serial data
+      let keepReading = false;             // controls the read loop
+      let buffer = "";                     // holds partial incoming lines
+
+      // Cache UI elements
+      const connectButton = document.querySelector("#connectButton");
+      const toggleLedButton = document.querySelector("#toggleLedButton");
+      const statusEl = document.querySelector("#status");
+      const lightEl = document.querySelector("#lightValue");
+      const buttonEl = document.querySelector("#buttonValue");
+      const colorEl = document.querySelector("#colorValue");
+
+      // Small helper to update status text
+      function setStatus(text) {
+        statusEl.textContent = text;
+      }
+
+      // Convert Arduino light reading (0–1023) to a grayscale background
+      function applyBackgroundFromLight(lightRaw) {
+        // clamp light value to expected analogRead range
+        const clamped = Math.max(0, Math.min(1023, lightRaw));
+
+        // map 0–1023 to 0–255
+        const shade = Math.round((clamped / 1023) * 255);
+
+        // set background color
+        document.body.style.backgroundColor = `rgb(${shade}, ${shade}, ${shade})`;
+
+        // update label
+        colorEl.textContent = `rgb(${shade}, ${shade}, ${shade})`;
+      }
+
+      // Parse a single line like "623,1"
+      function handleLine(line) {
+        // trim whitespace
+        const clean = line.trim();
+
+        // ignore empty lines
+        if (clean.length === 0) return;
+
+        // split by comma
+        const parts = clean.split(",");
+
+        // if format is wrong, show it in console but don't crash
+        if (parts.length < 2) {
+          console.log("Unrecognized line:", clean);
+          return;
+        }
+
+        // convert to numbers
+        const lightRaw = Number(parts[0]);
+        const buttonRaw = Number(parts[1]);
+
+        // update UI values
+        lightEl.textContent = isNaN(lightRaw) ? clean : String(lightRaw);
+        buttonEl.textContent = buttonRaw === 1 ? "YES" : "NO";
+
+        // update background using light value
+        if (!isNaN(lightRaw)) {
+          applyBackgroundFromLight(lightRaw);
+        }
+      }
+
+      // Read from serial continuously and handle complete lines
+      async function readLoop() {
+        // keep looping while connected
+        while (keepReading && port && port.readable) {
+          try {
+            // read one chunk
+            const { value, done } = await reader.read();
+
+            // if the stream ended, stop
+            if (done) break;
+
+            // decode chunk into text
+            const chunk = new TextDecoder().decode(value);
+
+            // add to buffer
+            buffer += chunk;
+
+            // split into lines
+            const lines = buffer.split("\n");
+
+            // keep the last partial line in buffer
+            buffer = lines.pop();
+
+            // handle each complete line
+            for (const line of lines) {
+              handleLine(line);
+            }
+          } catch (err) {
+            console.error("Read error:", err);
+            break;
+          }
+        }
+      }
+
+      // Connect to Arduino via WebSerial
+      async function connect() {
+        // confirm browser support
+        if (!("serial" in navigator)) {
+          alert("WebSerial is not supported in this browser. Use Chrome or Edge.");
+          return;
+        }
+
+        try {
+          // ask user to pick a port (must be called from a button click)
+          port = await navigator.serial.requestPort();
+
+          // open serial connection (must match Arduino Serial.begin)
+          await port.open({ baudRate: 9600 });
+
+          // setup writer for outgoing messages
+          writer = port.writable.getWriter();
+
+          // setup reader for incoming messages
+          reader = port.readable.getReader();
+
+          // update UI
+          setStatus("Connected");
+          toggleLedButton.disabled = false;
+          connectButton.textContent = "Disconnect";
+
+          // start reading
+          keepReading = true;
+          readLoop();
+        } catch (err) {
+          console.error("Connect failed:", err);
+          setStatus("Not connected");
+        }
+      }
+
+      // Disconnect cleanly
+      async function disconnect() {
+        try {
+          // stop read loop
+          keepReading = false;
+
+          // close reader
+          if (reader) {
+            await reader.cancel();
+            reader.releaseLock();
+            reader = null;
+          }
+
+          // close writer
+          if (writer) {
+            writer.releaseLock();
+            writer = null;
+          }
+
+          // close port
+          if (port) {
+            await port.close();
+            port = null;
+          }
+
+          // reset UI
+          setStatus("Not connected");
+          toggleLedButton.disabled = true;
+          connectButton.textContent = "Connect to Arduino";
+          lightEl.textContent = "--";
+          buttonEl.textContent = "--";
+          colorEl.textContent = "--";
+          document.body.style.backgroundColor = "white";
+        } catch (err) {
+          console.error("Disconnect failed:", err);
+        }
+      }
+
+      // Send "LED\n" to Arduino to toggle LED
+      async function toggleLed() {
+        if (!writer) return;
+
+        try {
+          // create message
+          const msg = "LED\n";
+
+          // encode to bytes
+          const data = new TextEncoder().encode(msg);
+
+          // write to serial
+          await writer.write(data);
+        } catch (err) {
+          console.error("Write failed:", err);
+        }
+      }
+
+      // Hook up button events
+      connectButton.addEventListener("click", async () => {
+        // connect if not connected, otherwise disconnect
+        if (!port) await connect();
+        else await disconnect();
+      });
+
+      toggleLedButton.addEventListener("click", toggleLed);
+    </script>
+  </body>
+</html>

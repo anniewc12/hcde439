@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, maximum-scale=1.0" />
+
+    <title>Annie's HCDE 439 Physical Computing Page!</title>
+
+    <link href="style.css" rel="stylesheet" type="text/css" />
+  </head>
+
+  <body>
+    <h1>Assignment 6: Talking to the web!</h1>
+
+    <p>
+      For this assignment, I built a browser-based interface that connects to an Arduino using WebSerial.
+      The webpage reads live sensor data (photoresistor) and controls hardware outputs (LED + pushbutton interaction)
+      through serial communication. The interface updates in real time so the user can see values change and
+      interact with the circuit directly from the browser.
+    </p>
+
+    <h2>Schematic and connections</h2>
+    <img src="a6schematic.jpg" width="470" />
+
+    <p>
+      Photoresistor is wired as a voltage divider into an Arduino analog pin A0. 
+      LED is connected to a digital pin through a resistor. Pushbutton is wired to a digital input pin.
+      The Arduino sends readings of light value + button state over Serial to the webpage.
+      The webpage can send commands back to turn the LED on/off.
+    </p>
+
+    <h3>Circuit on breadboard and calculations</h3>
+    <img src="a6pic1.png" width="470" />
+
+    <p>
+        The photoresistor and push button use fixed resistors to form a voltage divider, which I use 10KΩ in this case.
+          I used a 220Ω resistor to limit current through the LED.
+        (5V - 2V) / 220Ω = 0.0136A = 13.6mA, which is within safe range.
+    </p>
+
+    <p>
+        <strong>Connections:</strong> The photoresistor is wired as a voltage divider with a 10KΩ resistor.
+        One side of the photoresistor goes to 5V, the other side goes to A0.
+        The pushbutton is connected to D2 and GND.
+        The LED is connected to D9 (output) through a 220Ω resistor, then to GND.
+    </p>
+
+    <h2>Arduino Code</h2>
+    <pre><code>
+// A6 Arduino: WebSerial
+
+const int photoPin = A0;  
+const int buttonPin = 2;    
+const int ledPin = 9;     
+
+int ledValue = 0;             // LED brightness or on/off state
+
+void setup() {
+  Serial.begin(9600);
+
+  pinMode(photoPin, INPUT);
+
+  pinMode(ledPin, OUTPUT);
+  analogWrite(ledPin, 0);
+}
+
+void loop() {
+  int lightVal = analogRead(photoPin);
+
+  int buttonVal = digitalRead(buttonPin);
+  int pressed = (buttonVal == LOW) ? 1 : 0;
+
+  // send data to browser as CSV: light,pressed,ledValue
+  Serial.print(lightVal);
+  Serial.print(",");
+  Serial.print(pressed);
+  Serial.print(",");
+  Serial.println(ledValue);
+
+  // read commands from browser (example formats):
+  // "LED:0" or "LED:255"
+  if (Serial.available() &gt; 0) {
+    String msg = Serial.readStringUntil('\n');
+    msg.trim();
+
+    if (msg.startsWith("LED:")) {
+      String valStr = msg.substring(4);
+      int v = valStr.toInt();
+      v = constrain(v, 0, 255);
+      ledValue = v;
+      analogWrite(ledPin, ledValue);
+    }
+  }
+
+  delay(30);
+}
+    </code></pre>
+
+    <h2>Webpage Code (HTML / JS)</h2>
+    <pre><code>
+
+&lt;button id="connectBtn"&gt;Connect to Arduino&lt;/button&gt;
+
+&lt;div&gt;
+  &lt;p&gt;Light: &lt;span id="lightVal"&gt;—&lt;/span&gt;&lt;/p&gt;
+  &lt;p&gt;Button: &lt;span id="buttonVal"&gt;—&lt;/span&gt;&lt;/p&gt;
+  &lt;p&gt;LED: &lt;span id="ledVal"&gt;—&lt;/span&gt;&lt;/p&gt;
+&lt;/div&gt;
+
+&lt;label&gt;
+  LED Brightness:
+  &lt;input id="ledSlider" type="range" min="0" max="255" value="0" /&gt;
+&lt;/label&gt;
+
+&lt;script&gt;
+let port, reader, writer;
+
+const connectBtn = document.getElementById("connectBtn");
+const lightSpan = document.getElementById("lightVal");
+const buttonSpan = document.getElementById("buttonVal");
+const ledSpan = document.getElementById("ledVal");
+const ledSlider = document.getElementById("ledSlider");
+
+connectBtn.addEventListener("click", async () =&gt; {
+  port = await navigator.serial.requestPort();
+  await port.open({ baudRate: 9600 });
+
+  const textDecoder = new TextDecoderStream();
+  port.readable.pipeTo(textDecoder.writable);
+  reader = textDecoder.readable.getReader();
+
+  const textEncoder = new TextEncoderStream();
+  textEncoder.readable.pipeTo(port.writable);
+  writer = textEncoder.writable.getWriter();
+
+  readLoop();
+});
+
+async function readLoop() {
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += value;
+
+    // parse by line
+    const lines = buffer.split("\n");
+    buffer = lines.pop();
+
+    for (const line of lines) {
+      const parts = line.trim().split(",");
+      if (parts.length &gt;= 3) {
+        const light = parts[0];
+        const pressed = parts[1] === "1" ? "Pressed" : "Not pressed";
+        const led = parts[2];
+
+        lightSpan.textContent = light;
+        buttonSpan.textContent = pressed;
+        ledSpan.textContent = led;
+      }
+    }
+  }
+}
+
+ledSlider.addEventListener("input", async () =&gt; {
+  if (!writer) return;
+  const v = ledSlider.value;
+  await writer.write(`LED:${v}\n`);
+});
+&lt;/script&gt;
+    </code></pre>
+
+    <h2>Circuit Operation</h2>
+    <img src="a6vid1.gif" width="450" />
+
+    <p>
+      This GIF shows the LED responds to commands from the webpage and it also returns the button state of whether
+      it is currently being pressed or not.
+    </p>
+    
+    <img src="a6vid2.gif" width="450" />
+
+    <p>
+      The webpage updating its brightness based on the photoresistor value. 
+      Moving between bright and dark environments changes the sensor value.
+    </p>
+
+    <h2>Reflection</h2>
+    <p>
+      The main challenge was making sure the serial format stayed consistent and that the webpage parsed
+      incoming data reliably. Debouncing the pushbutton and handling connection state in
+      the browser also helped make the interaction feel stable.
+    </p>
+
+    <h2>AI Tool Usage</h2>
+    <p>
+      Yes. I used a language model to help troubleshoot WebSerial connection setup and to validate a clean
+      message format for sending/receiving serial data. I tested and adjusted the final behavior using the
+      browser console and Arduino Serial Monitor.
+    </p>
+
+    <p>
+      <a href="index.html">Click to return to Homepage</a>
+    </p>
+  </body>
+</html>
